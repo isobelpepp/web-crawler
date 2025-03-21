@@ -1,4 +1,5 @@
 require 'sinatra'
+require './lib/controllers/crawler_controller.rb' 
 
 set :views, File.join(__dir__, 'lib', 'views')
 
@@ -7,9 +8,11 @@ get '/' do
 end
 
 post '/' do
-  # Call crawler controller to process url
-
-  # mock output
-  @output = { "url1": ["url2", "url3"], "url2": ["url3"]}
+  @url = params[:url]
+  begin
+    @output = CrawlerController.process_url(@url)
+  rescue ArgumentError => e
+    @error_message = e.message
+  end
   erb :crawler
 end

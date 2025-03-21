@@ -10,6 +10,10 @@
       <input type="submit" value="Submit" id="submitBtn">
     </form>
 
+    <% if @error_message %>
+      <p style="color: red;"><%= @error_message %></p>
+    <% end %>
+
     <% if @output %>
       <h2>Crawled Links</h2>
       <div>
