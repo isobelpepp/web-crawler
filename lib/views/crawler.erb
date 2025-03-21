@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Web Crawler</title>
+  </head>
+  <body>
+    <h1>Web Crawler</h1>
+    <form action="/" method="post">
+      <input type="text" name="url" size="30" value="<%= params[:url] %>"><br><br>
+      <input type="submit" value="Submit" id="submitBtn">
+    </form>
+
+    <% if @output %>
+      <h2>Crawled Links</h2>
+      <div>
+        <% @output.each do |url, links| %>
+          <div class="links-list">
+            <strong><%= url %> </strong>
+            <ul>
+              <% if links && links.any? %>
+                <% links.each do |link| %>
+                  <li><a href="<%= link %>" target="_blank"><%= link %></a></li>
+                <% end %>
+              <% else %>
+                <li>No links found</li>
+              <% end %>
+            </ul>
+          </div>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
+  </body>
+</html>
