@@ -1,3 +1,4 @@
+require 'webmock/rspec'
 require_relative '../../lib/services/web_crawler'
 
 RSpec.describe WebCrawler do
@@ -13,15 +14,42 @@ RSpec.describe WebCrawler do
   end
 
   describe "#crawl" do
+
     it "crawls the starting URL and collects all page links" do
-    # stub http requests
+      stub_request(:get, "https://example.com/")
+      .to_return(status: 200, body: '<html><a href="https://example.com/page1">Page 1</a><a href="https://example.com/page2">Page 2</a></html>', headers: {})
 
-    # call crawl
+       response = crawler.crawl
 
-    # expected links = 
+        expected_links = {
+        "https://example.com/" => ["https://example.com/page1", "https://example.com/page2"],
+        }
 
-    # expect the output to be the same as expected links
+        expect(response).to eq(expected_links)
     end
+    
+    it "crawls the starting URL and collects all relative page links" do
+      stub_request(:get, "https://example.com/")
+      .to_return(status: 200, body: '<html><a href="/page1">Page 1</a><a href="/page2">Page 2</a></html>', headers: {})
+
+       response = crawler.crawl
+
+        expected_links = {
+        "https://example.com/" => ["https://example.com/page1", "https://example.com/page2"],
+        }
+
+        expect(response).to eq(expected_links)
+    end
+
+    it "crawls the starting URL and collects all page and subsequent page links" do
+      # stub http requests
+  
+      # call crawl
+  
+      # expected links = 
+  
+      # expect the output to be the same as expected links
+      end
     it 'avoids crawling the same url twice' do
       # stub pages with a loop
 
@@ -34,8 +62,6 @@ RSpec.describe WebCrawler do
   end
 
   context "Network responses" do
-    it 'goes on to process page if status is 200' do
-    end
     it 'follows redirects correctly' do
       # stub an empty page
     
@@ -71,30 +97,43 @@ RSpec.describe WebCrawler do
 
   context "HTML processing" do
     it "extracts all links from a page's content" do
-      # create body url and body to pass through
+      body = "<html><a href='/page1'>Link 1</a><a href='/page2'>Link 2</a></html>"
+      webpage_url = "https://example.com/start"
 
-      # call extract content
+      crawler.extract_links(webpage_url, body)
 
-      # expect output
+      page_links = crawler.instance_variable_get(:@crawled_pages)
+      expect(page_links[webpage_url]).to contain_exactly(
+        "https://example.com/page1",
+        "https://example.com/page2"
+      )
     end
-    it 'handles empty pages' do
-      # stub an empty page
-    
-      # carwl
-    
-      # expected links
 
-      # expect output to be the same as empty links
+    it 'handles empty pages' do
+      stub_request(:get, "https://example.com/")
+      .to_return(status: 200, body: '<html></html>', headers: {})
+    
+      response = crawler.crawl
+
+      expected_links = {
+        "https://example.com/" => ["No links found."]
+      }
+    
+      expect(response).to eq(expected_links)
     end
 
     it 'handles pages with a large number of links' do
-      # stub a page with many links
-
-      # crawl
+      large_html = '<html>' + ('<a href="/page">Link</a>' * 1000) + '</html>'
+      stub_request(:get, "https://example.com/")
+        .to_return(status: 200, body: large_html, headers: {})
     
-      # expected links
+      response = crawler.crawl
 
-      # expect output to be the same as empty links
+      expected_links = {
+        "https://example.com/" => Array.new(1000, "https://example.com/page"),
+      }
+    
+      expect(response).to eq(expected_links)
     end
     it 'skips non-HTML pages' do
       # stub a non-HTML page (e.g., PDF)
@@ -108,7 +147,6 @@ RSpec.describe WebCrawler do
   end
 
   context "URL resolution" do
-
     it 'handles invalid URLs gracefully' do
       # stub an invalid URL
 
@@ -117,16 +155,6 @@ RSpec.describe WebCrawler do
       # expected links
     
       # expect output to be same as expected links
-    end
-
-    it 'correctly handles relative and absolute URLs' do
-      # stub a page with relative and absolute URLs
-
-      # crawl
-    
-      # expected links
-
-      # expect output to be the same as empty links
     end
   end
 end
