@@ -1,15 +1,14 @@
 require "sinatra/base"
 require 'net/http'
+require_relative '../services/web_crawler'
 
 class CrawlerController < Sinatra::Base
   set :default_content_type, 'application/json'
 
   def self.process_url(url)
     if url_exists?(url)
-      # call web crawler
-
-      # mock response
-      { "url1": ["url2", "url3"], "url2": ["url3"]}
+      crawler = WebCrawler.new(url)
+      crawler.crawl
     else
       raise ArgumentError, "Not a valid URL, please try again."
     end
