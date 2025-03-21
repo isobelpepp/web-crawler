@@ -1,4 +1,5 @@
 require 'nokogiri'
+require 'concurrent-ruby'
 require_relative '../helpers/http_helper'
 
 class WebCrawler
@@ -6,37 +7,79 @@ class WebCrawler
     @start_url = start_url
     @url_queue = Queue.new << @start_url
     @content_queue = Queue.new
+    @url_count = Concurrent::AtomicFixnum.new(1) 
+    @content_count = Concurrent::AtomicFixnum.new(0)
     @crawled_pages = {}
+    @cpu_cores = Etc.nprocessors
+    @logged_links = Concurrent::Set.new.add(@start_url)
+    @mutex = Mutex.new
+    @condition = ConditionVariable.new
+    @crawl_pool = Concurrent::ThreadPoolExecutor.new(
+      min_threads: 5,
+      max_threads: 100,
+    )
+    @process_pool = Concurrent::ThreadPoolExecutor.new(
+      min_threads: 5,
+      max_threads: 100,
+    )
+    @done = false
   end
 
   def crawl
-    crawl_url
 
-    process_html_content
+    @cpu_cores.times do
+      @crawl_pool.post { crawl_url }
+    end
+
+    @cpu_cores.times do
+      @process_pool.post { process_html_content }
+    end
+
+    shut_down_pools
 
     @crawled_pages
   end
 
   def crawl_url
-    webpage_url = @url_queue.pop
+    while !@done
+      @mutex.synchronize { @condition.wait(@mutex) while @url_queue.empty? && !@done }
 
-    response = Helper::HTTPHelper.connect(webpage_url)
+      webpage_url = @url_queue.pop(true) rescue nil
+      break unless webpage_url
 
-    handle_response(webpage_url, response)
+      response = Helper::HTTPHelper.connect(webpage_url)
+
+      handle_response(webpage_url, response)
+    end
   end
 
   def handle_response(webpage_url, response)
     #handle http errors
     if response.success?
       @content_queue << { url: webpage_url, body: response.body }
+      @content_count.increment
+      @url_count.decrement
+      @condition.broadcast
     else
       @crawled_pages[webpage_url] = ["Error fetching: #{webpage_url}, with response code: #{status}"]
+      @url_count.decrement
+      @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
     end
   end
 
   def process_html_content
-    content = @content_queue.pop
-    extract_links(content[:url], content[:body])
+    while !@done
+
+      @mutex.synchronize { @condition.wait(@mutex) while @content_queue.empty? && !@done }
+
+      content = @content_queue.pop(true) rescue nil
+      break unless content
+
+      extract_links(content[:url], content[:body])
+      @content_count.decrement
+
+      @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
+    end
   end
 
   def extract_links(webpage_url, body)
@@ -47,19 +90,38 @@ class WebCrawler
       link = anchor_tag['href']
       next unless link
 
-      full_url = resolve_url(webpage_url, link)
+      full_url = Helper::HTTPHelper.resolve_url(webpage_url, link)
+      next unless full_url
 
-      @url_queue << full_url
-      links_on_page << full_url
+      if @logged_links.include?(full_url) || !same_domain?(full_url)
+        links_on_page << full_url
+      else
+        puts "Found link: #{full_url}"
+        @url_count.increment
+        @url_queue << full_url
+        @logged_links.add(full_url)
+        links_on_page << full_url
+      end
+      @condition.broadcast
     end
-
-    links_on_page.empty?  ? @crawled_pages[webpage_url] = ["No links found."] : @crawled_pages[webpage_url] = links_on_page
+    links_on_page.empty?  ? @crawled_pages[webpage_url] = ["No links found."] : @crawled_pages[webpage_url] = links_on_page.uniq
+    @condition.broadcast
   end
 
-  def resolve_url(base_url, relative_url)
-    return nil if relative_url.nil? || relative_url.start_with?('#')
-    URI.join(base_url, relative_url).to_s
-  rescue URI::InvalidURIError => e
-    nil
+  def same_domain?(url)
+    URI.parse(url).host == URI.parse(@start_url).host
+  end
+
+  def shut_down_pools
+    @crawl_pool.shutdown
+    @process_pool.shutdown
+    @crawl_pool.wait_for_termination
+    @process_pool.wait_for_termination
+  end
+
+  def close
+    @done = true
+    @condition.broadcast 
   end
 end
+

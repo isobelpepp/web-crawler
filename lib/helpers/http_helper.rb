@@ -14,6 +14,13 @@ module Helper
         end
       end
 
+      def resolve_url(base_url, relative_url)
+        return nil if relative_url.nil? || relative_url.start_with?('#')
+        URI.join(base_url, relative_url).to_s
+      rescue URI::InvalidURIError => e
+        nil
+      end
+
     end
   end
 end
