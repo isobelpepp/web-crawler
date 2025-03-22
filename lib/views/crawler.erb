@@ -2,34 +2,77 @@
 <html>
   <head>
     <title>Web Crawler</title>
+    <style>
+      .links-list {
+        margin-left: 20px;
+        display: none;
+      }
+      .collapsible {
+        cursor: pointer;
+        background-color: #f1f1f1;
+        padding: 10px;
+        width: 100%;
+        text-align: left;
+        border: none;
+        outline: none;
+        font-size: 18px;
+        margin: 5px 0;
+      }
+      .active, .collapsible:hover {
+        background-color: #ccc;
+      }
+    </style>
+    <script>
+      function disableSubmit() {
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('loadingMessage').style.display = 'block'; 
+      }
+
+      function enableSubmit() {
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('loadingMessage').style.display = 'none';
+      }
+
+      function toggleLinks(event) {
+        const linksList = event.target.nextElementSibling;
+        if (linksList.style.display === "block") {
+          linksList.style.display = "none";
+        } else {
+          linksList.style.display = "block";
+        }
+      }
+    </script>
   </head>
   <body>
     <h1>Web Crawler</h1>
-    <form action="/" method="post">
+    <form action="/" method="post" onsubmit="disableSubmit()">
       <input type="text" name="url" size="30" value="<%= params[:url] %>"><br><br>
       <input type="submit" value="Submit" id="submitBtn">
     </form>
 
-    <% if @error_message %>
-      <p style="color: red;"><%= @error_message %></p>
-    <% end %>
+    <div id="loadingMessage" style="display:none;">
+      <p>Scraping in progress... Please wait.</p>
+    </div>
 
     <% if @output %>
-      <h2>Crawled Links</h2>
+      <h2>Crawled Links: <%= @output.length %></h2>
       <div>
         <% @output.each do |url, links| %>
-          <div class="links-list">
-            <strong><%= url %> </strong>
-            <ul>
-              <% if links && links.any? %>
-                <% links.each do |link| %>
-                  <li><a href="<%= link %>" target="_blank"><%= link %></a></li>
+          <div>
+            <button class="collapsible" onclick="toggleLinks(event)">
+              <strong><a href="<%= url %>" target="_blank"><%= url %></a></strong>
+            </button>
+            <div class="links-list">
+              <ul>
+                <% if links && links.any? %>
+                  <% links.each do |link| %>
+                    <li><a href="<%= link %>" target="_blank"><%= link %></a></li>
+                  <% end %>
+                <% else %>
+                  <li>No links found</li>
                 <% end %>
-              <% else %>
-                <li>No links found</li>
-              <% end %>
-            </ul>
-          </div>
+              </ul>
+            </div>
           </div>
         <% end %>
       </div>
