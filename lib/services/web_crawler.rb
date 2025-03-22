@@ -64,8 +64,8 @@ class WebCrawler
   end
 
   def handle_response(webpage_url, response)
-    if !response || response.code.to_i >= 400
-      message = "Error fetching #{webpage_url}"
+    if !response || response.code != 200 || response.body.nil? || response.body.empty?
+      message = "Error fetching #{webpage_url} content"
       message << ", with response code: #{response.code}" if response
       @crawled_pages[webpage_url] = [message]
       @url_count.decrement
@@ -91,8 +91,8 @@ class WebCrawler
       content = @content_queue.pop(true) rescue nil
       break unless content
 
-      extract_links(content[:url], content[:body])
       @content_count.decrement
+      extract_links(content[:url], content[:body])
 
       @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
     end
@@ -118,7 +118,6 @@ class WebCrawler
         @logged_links.add(full_url)
         links_on_page << full_url
       end
-      @condition.broadcast
     end
     @crawled_pages[webpage_url] = links_on_page.uniq
     @condition.broadcast

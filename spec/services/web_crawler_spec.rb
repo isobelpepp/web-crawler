@@ -73,7 +73,7 @@ RSpec.describe WebCrawler do
         .to_return(status: 200, body: '<html><a href="/page6">Page 6</a></html>', headers: {})
   
       stub_request(:get, "https://example.com/page6")
-        .to_return(status: 200, body: '', headers: {})
+        .to_return(status: 200, body: '<html></html>', headers: {})
     
       response = crawler.crawl
 
@@ -111,7 +111,7 @@ RSpec.describe WebCrawler do
        response = crawler.crawl
 
         expected_links = {
-        "https://example.com/" => ["Error fetching https://example.com/, with response code: 500"],
+        "https://example.com/" => ["Error fetching https://example.com/ content, with response code: 500"],
         }
 
         expect(response).to eq(expected_links)
@@ -161,7 +161,7 @@ RSpec.describe WebCrawler do
       expected_links = {
         "https://example.com/" => ["https://example.com/page1"],
         "https://example.com/page1" => ["https://example.com/timeout"],
-        "https://example.com/timeout" => ["Error fetching https://example.com/timeout"]
+        "https://example.com/timeout" => ["Error fetching https://example.com/timeout content"]
       }
     
       expect(response).to eq(expected_links)
@@ -181,8 +181,24 @@ RSpec.describe WebCrawler do
     
       expected_links = {
         "https://example.com/" => ["https://example.com/404", "https://example.com/500"],
-        "https://example.com/404" => ["Error fetching https://example.com/404, with response code: 404"],
-        "https://example.com/500" => ["Error fetching https://example.com/500, with response code: 500"],
+        "https://example.com/404" => ["Error fetching https://example.com/404 content, with response code: 404"],
+        "https://example.com/500" => ["Error fetching https://example.com/500 content, with response code: 500"],
+      }
+    
+      expect(response).to eq(expected_links)
+    end
+
+    it 'returns error if no body returned from request' do
+      stub_request(:get, "https://example.com/")
+        .to_return(status: 200, body: '<html><a href="/page1">Page 1</a></html>', headers: {})
+      stub_request(:get, "https://example.com/page1")
+        .to_return(status: 200, body: '', headers: {})
+    
+      response = crawler.crawl
+    
+      expected_links = {
+        "https://example.com/" => ["https://example.com/page1"],
+        "https://example.com/page1" => ["Error fetching https://example.com/page1 content, with response code: 200"]
       }
     
       expect(response).to eq(expected_links)
@@ -221,7 +237,7 @@ RSpec.describe WebCrawler do
       stub_request(:get, "https://example.com/")
         .to_return(status: 200, body: large_html, headers: {})
       stub_request(:get, "https://example.com/page")
-        .to_return(status: 200, body: '', headers: {})
+        .to_return(status: 200, body: '<html></html>', headers: {})
     
       response = crawler.crawl
 
@@ -279,7 +295,7 @@ RSpec.describe WebCrawler do
 
       expected_links = {
         "https://example.com/" => ["https://example.com/thisisabadurl"],
-        "https://example.com/thisisabadurl" => ["Error fetching https://example.com/thisisabadurl, with response code: 400"],
+        "https://example.com/thisisabadurl" => ["Error fetching https://example.com/thisisabadurl content, with response code: 400"],
       }
     
       expect(response).to eq(expected_links)
@@ -315,7 +331,7 @@ RSpec.describe WebCrawler do
         stub_request(:get, "https://example.com/")
           .to_return(status: 200, body: '<html><a href="/page1">Page 1</a></html>', headers: {})
         stub_request(:get, "https://example.com/page1")
-          .to_return(status: 200, body: '<html><a href="/page2">Page 2</a></html>', headers: {})
+          .to_return { sleep(0.5); { status: 200, body: '<html><a href="/page2">Page 2</a></html>', headers: {} } }
         stub_request(:get, "https://example.com/page2")
           .to_return { sleep(0.5); { status: 200, body: '<html><a href="/page3">Page 3</a></html>', headers: {} } }
         stub_request(:get, "https://example.com/page3")
@@ -323,9 +339,10 @@ RSpec.describe WebCrawler do
 
         allow(Time).to receive(:now).and_return(timed_crawler.instance_variable_get(:@start_time) + 1.5)
 
+        response = timed_crawler.crawl
+
         expected_result = {
-          "https://example.com/"=>["https://example.com/page1"], 
-          "https://example.com/page1"=>["https://example.com/page2"]
+          "https://example.com/"=>["https://example.com/page1"]
         }
 
         expect(response).to eq(expected_result)
