@@ -54,8 +54,7 @@ class WebCrawler
   end
 
   def handle_response(webpage_url, response)
-    #handle http errors
-    if !response || response.code.to_i > 400
+    if !response || response.code.to_i >= 400
       message = "Error fetching #{webpage_url}"
       message << ", with response code: #{response.code}" if response
       @crawled_pages[webpage_url] = [message]
@@ -117,7 +116,7 @@ class WebCrawler
   def non_html_link(url)
     non_html_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.css', '.js', '.json', '.xml']
   
-    non_html_extensions.any? { |ext| url.downcase.end_with?(ext) }
+    url.start_with?('mailto:') || non_html_extensions.any? { |ext| url.downcase.end_with?(ext) }
   end
 
   def shut_down_pools

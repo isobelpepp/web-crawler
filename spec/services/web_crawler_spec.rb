@@ -205,7 +205,7 @@ RSpec.describe WebCrawler do
     
       expect(response).to eq(expected_links)
     end
-    it 'skips non-HTML pages' do
+    it 'skips non-HTML file extensions' do
       stub_request(:get, "https://example.com/")
         .to_return(status: 200, body: '<html><a href="/page1">Page 1</a></html>', headers: {})
       stub_request(:get, "https://example.com/page1")
@@ -222,17 +222,40 @@ RSpec.describe WebCrawler do
 
       expect(response).to eq(expected_links)
     end
+
+    it 'does not visit mailto addresses' do
+      stub_request(:get, "https://example.com/")
+      .to_return(status: 200, body: '<html><a href="mailto:someone@example.com">Contact Us</a><a href="/page1">Page 1</a></html>', headers: {})
+      stub_request(:get, "https://example.com/page1")
+        .to_return(status: 200, body: '<html><a href="mailto:support@example.com">Support</a></html>', headers: {})
+
+      response = crawler.crawl
+
+      expected_links = {
+        "https://example.com/" => ["mailto:someone@example.com", "https://example.com/page1"],
+        "https://example.com/page1" => ["mailto:support@example.com"],
+      }
+
+      expect(response).to eq(expected_links)
+    end
   end
 
   context "URL resolution" do
-    it 'handles invalid URLs gracefully' do
-      # stub an invalid URL
+    it 'handles invalid URLs' do
+      stub_request(:get, "https://example.com/")
+      .to_return(status: 200, body: '<html><a href="/thisisabadurl">Page 1</a></html>', headers: {})
+  
+      stub_request(:get, "https://example.com/thisisabadurl")
+        .to_return(status: 400, body: 'Bad Request', headers: {})
 
-      # crawl
+      response = crawler.crawl
+
+      expected_links = {
+        "https://example.com/" => ["https://example.com/thisisabadurl"],
+        "https://example.com/thisisabadurl" => ["Error fetching https://example.com/thisisabadurl, with response code: 400"],
+      }
     
-      # expected links
-    
-      # expect output to be same as expected links
+      expect(response).to eq(expected_links)
     end
   end
 end
