@@ -134,22 +134,31 @@ RSpec.describe WebCrawler do
       expected_links = {
         "https://example.com/" => ["https://example.com/page1"],
         "https://example.com/page1" => ["https://example.com/timeout"],
-        "https://example.com/timeout" => ["Error fetching: https://example.com/timeout"]
+        "https://example.com/timeout" => ["Error fetching https://example.com/timeout"]
       }
     
       expect(response).to eq(expected_links)
     end
 
     it 'handles 404 and 500 errors' do
-      # stub a 404 error page
-
-      # stub a 500 error page
-
-      # crawl
+      stub_request(:get, "https://example.com/")
+        .to_return(status: 200, body: '<html><a href="/404">Page 1</a><a href="/500">Page 2</a></html>', headers: {})
+      stub_request(:get, "https://example.com/505")
+        .to_return(status: 500, body: 'Internal Server Error', headers: {})
+      stub_request(:get, "https://example.com/404")
+        .to_return(status: 404, body: 'Not Found', headers: {})
+      stub_request(:get, "https://example.com/500")
+        .to_return(status: 500, body: 'Internal Server Error', headers: {})
     
-      # expected links
-
-      # expect output to be the same as empty links
+      response = crawler.crawl
+    
+      expected_links = {
+        "https://example.com/" => ["https://example.com/404", "https://example.com/500"],
+        "https://example.com/404" => ["Error fetching https://example.com/404, with response code: 404"],
+        "https://example.com/500" => ["Error fetching https://example.com/500, with response code: 500"],
+      }
+    
+      expect(response).to eq(expected_links)
     end
   end
 

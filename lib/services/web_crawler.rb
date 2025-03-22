@@ -55,8 +55,10 @@ class WebCrawler
 
   def handle_response(webpage_url, response)
     #handle http errors
-    if !response
-      @crawled_pages[webpage_url] = ["Error fetching: #{webpage_url}"]
+    if !response || response.code.to_i > 400
+      message = "Error fetching #{webpage_url}"
+      message << ", with response code: #{response.code}" if response
+      @crawled_pages[webpage_url] = [message]
       @url_count.decrement
       @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
     else
