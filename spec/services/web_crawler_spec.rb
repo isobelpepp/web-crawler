@@ -121,24 +121,24 @@ RSpec.describe WebCrawler do
       # expect output to be the same as empty links
     end
 
-    # it 'handles timeout errors gracefully' do
-    #   stub_request(:get, "https://example.com/")
-    #     .to_return(status: 200, body: '<html><a href="/page1">Page 1</a></html>', headers: {})
-    #   stub_request(:get, "https://example.com/page1")
-    #     .to_return(status: 200, body: '<html><a href="/timeout">Page 2</a></html>', headers: {})
-    #   stub_request(:get, "https://example.com/timeout")
-    #     .to_timeout
+    it 'handles timeout errors' do
+      stub_request(:get, "https://example.com/")
+        .to_return(status: 200, body: '<html><a href="/page1">Page 1</a></html>', headers: {})
+      stub_request(:get, "https://example.com/page1")
+        .to_return(status: 200, body: '<html><a href="/timeout">Page 2</a></html>', headers: {})
+      stub_request(:get, "https://example.com/timeout")
+        .to_timeout
     
-    #   response = crawler.crawl
+      response = crawler.crawl
 
-    #   expected_links = {
-    #     "https://example.com/" => ["https://example.com/page1"],
-    #     "https://example.com/page1" => ["https://example.com/timeout"],
-    #     "https://example.com/timeout" => ["Error fetching: https://example.com/timeout, with response code: Timeout"]
-    #   }
+      expected_links = {
+        "https://example.com/" => ["https://example.com/page1"],
+        "https://example.com/page1" => ["https://example.com/timeout"],
+        "https://example.com/timeout" => ["Error fetching: https://example.com/timeout"]
+      }
     
-    #   expect(response).to eq(expected_links)
-    # end
+      expect(response).to eq(expected_links)
+    end
 
     it 'handles 404 and 500 errors' do
       # stub a 404 error page
