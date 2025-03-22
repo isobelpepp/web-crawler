@@ -6,6 +6,7 @@ group :development do
   gem 'sinatra'
   gem 'nokogiri'
   gem 'concurrent-ruby'
+  gem 'httparty'
 end
 
 group :test do

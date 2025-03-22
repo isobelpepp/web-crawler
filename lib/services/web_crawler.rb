@@ -3,8 +3,10 @@ require 'concurrent-ruby'
 require_relative '../helpers/http_helper'
 
 class WebCrawler
-  def initialize(start_url)
+  def initialize(start_url, max_time = nil)
     @start_url = start_url
+    @max_time = max_time
+    @start_time = Time.now
     @url_queue = Queue.new << @start_url
     @content_queue = Queue.new
     @url_count = Concurrent::AtomicFixnum.new(1) 
@@ -22,10 +24,12 @@ class WebCrawler
       min_threads: 5,
       max_threads: 100,
     )
+    @stop_accepting_new_tasks = false
     @done = false
   end
 
   def crawl
+    return @crawled_pages if @max_time == 0
 
     @cpu_cores.times do
       @crawl_pool.post { crawl_url }
@@ -42,6 +46,12 @@ class WebCrawler
 
   def crawl_url
     while !@done
+      check_max_time
+
+      if @stop_accepting_new_tasks
+        break if @url_queue.empty?
+      end
+  
       @mutex.synchronize { @condition.wait(@mutex) while @url_queue.empty? && !@done }
 
       webpage_url = @url_queue.pop(true) rescue nil
@@ -70,6 +80,11 @@ class WebCrawler
 
   def process_html_content
     while !@done
+      check_max_time
+
+      if @stop_accepting_new_tasks
+        break if @content_queue.empty?
+      end
 
       @mutex.synchronize { @condition.wait(@mutex) while @content_queue.empty? && !@done }
 
@@ -126,8 +141,21 @@ class WebCrawler
     @process_pool.wait_for_termination
   end
 
+  def check_max_time
+    return if !@max_time
+    elapsed_time = Time.now - @start_time
+
+    if elapsed_time > @max_time
+      puts "Maximum time exceeded. Shutting down process..."
+      close
+    else
+      puts "Time remaining: #{@max_time - elapsed_time} seconds."
+    end
+  end
+
   def close
     @done = true
+    @stop_accepting_new_tasks = true
     @condition.broadcast 
   end
 end

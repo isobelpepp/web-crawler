@@ -9,8 +9,9 @@ end
 
 post '/' do
   @url = params[:url]
+  @max_time = params[:max_time]
   begin
-    @output = CrawlerController.process_url(@url)
+    @output = CrawlerController.process_url(@url, @max_time)
   rescue ArgumentError => e
     @error_message = e.message
   end

@@ -1,4 +1,5 @@
 require 'webmock/rspec'
+require 'timecop'
 require_relative '../../lib/services/web_crawler'
 
 RSpec.describe WebCrawler do
@@ -88,6 +89,33 @@ RSpec.describe WebCrawler do
     }
 
       expect(response).to eq(expected_links)
+    end
+
+        
+    it "does not visit websites that aren't on the same domain" do
+      stub_request(:get, "https://example.com/")
+        .to_return(status: 200, body: '<html><a href="https://differentdomain.com/page1">Different domain</a></html>', headers: {})
+
+       response = crawler.crawl
+
+        expected_links = {
+        "https://example.com/" => ["https://differentdomain.com/page1"]
+        }
+
+        expect(response).to eq(expected_links)
+    end
+
+    it "shuts process down properly if first response is a bad response" do
+      stub_request(:get, "https://example.com/")
+        .to_return(status: 500, body: '<html><a href="https://differentdomain.com/page1">Different domain</a></html>', headers: {})
+
+       response = crawler.crawl
+
+        expected_links = {
+        "https://example.com/" => ["Error fetching https://example.com/, with response code: 500"],
+        }
+
+        expect(response).to eq(expected_links)
     end
 
     it 'avoids crawling the same url twice' do
@@ -256,6 +284,67 @@ RSpec.describe WebCrawler do
       }
     
       expect(response).to eq(expected_links)
+    end
+  end
+
+  describe "Max time" do
+    let(:timed_crawler) { WebCrawler.new(start_url, 1) }
+    let(:zero_seconds_crawler) { WebCrawler.new(start_url, 0) }
+
+    context 'Max time exceeded' do
+      it 'shuts down process once it is done, even if max time is not exceeded' do
+        stub_request(:get, "https://example.com/")
+              .to_return(status: 200, body: '<html></html>', headers: {})
+
+        timed_crawler.crawl
+
+        expect(timed_crawler.instance_variable_get(:@done)).to be true
+      end
+  
+      it 'does not return anything if max time is 0' do
+        stub_request(:get, "https://example.com/")
+            .to_return(status: 200, body: '<html></html>', headers: {})
+
+        response = zero_seconds_crawler.crawl
+        
+        expect(response).to be_empty
+      end
+    end
+
+    context 'when max_time is exceeded during crawling' do
+      it 'does not stop the current tasks but stops accepting new ones' do
+        stub_request(:get, "https://example.com/")
+          .to_return(status: 200, body: '<html><a href="/page1">Page 1</a></html>', headers: {})
+        stub_request(:get, "https://example.com/page1")
+          .to_return(status: 200, body: '<html><a href="/page2">Page 2</a></html>', headers: {})
+        stub_request(:get, "https://example.com/page2")
+          .to_return { sleep(0.5); { status: 200, body: '<html><a href="/page3">Page 3</a></html>', headers: {} } }
+        stub_request(:get, "https://example.com/page3")
+          .to_return { sleep(0.5); { status: 200, body: '<html><a href="/page3">Page 3</a></html>', headers: {} } }
+
+        allow(Time).to receive(:now).and_return(timed_crawler.instance_variable_get(:@start_time) + 1.5)
+
+        expected_result = {
+          "https://example.com/"=>["https://example.com/page1"], 
+          "https://example.com/page1"=>["https://example.com/page2"]
+        }
+
+        expect(response).to eq(expected_result)
+      end
+    end
+
+    describe '#shut_down_pools' do
+      it 'shuts down the pools after the max time is exceeded' do
+        stub_request(:get, "https://example.com/")
+          .to_return(status: 200, body: '<html></html>', headers: {})
+
+        allow(Time).to receive(:now).and_return(timed_crawler.instance_variable_get(:@start_time) + 2)
+
+        timed_crawler.crawl
+
+        expect(timed_crawler.instance_variable_get(:@crawl_pool)).to be_shutdown
+        expect(timed_crawler.instance_variable_get(:@process_pool)).to be_shutdown
+      end
     end
   end
 end

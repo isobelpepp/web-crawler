@@ -5,9 +5,10 @@ require_relative '../services/web_crawler'
 class CrawlerController < Sinatra::Base
   set :default_content_type, 'application/json'
 
-  def self.process_url(url)
+  def self.process_url(url, max_time)
     if url_exists?(url)
-      crawler = WebCrawler.new(url)
+      converted_max_time = max_time.empty? ? nil : max_time.to_f
+      crawler = WebCrawler.new(url, converted_max_time)
       crawler.crawl
     else
       raise ArgumentError, "Not a valid URL, please try again."
