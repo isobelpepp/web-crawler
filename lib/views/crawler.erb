@@ -25,7 +25,12 @@
     <script>
       function disableSubmit() {
         document.getElementById('submitBtn').disabled = true;
-        document.getElementById('loadingMessage').style.display = 'block'; 
+        document.getElementById('loadingMessage').style.display = 'block';
+
+        const outputDiv = document.getElementById('output');
+        if (outputDiv) {
+          outputDiv.innerHTML = '';
+        }
       }
 
       function enableSubmit() {
@@ -58,29 +63,30 @@
       <p>Crawling in progress... Please wait.</p>
     </div>
 
-    <% if @output %>
-      <h2>Crawled Links: <%= @output.length %></h2>
-      <div>
-        <% @output.each do |url, links| %>
-          <div>
-            <button class="collapsible" onclick="toggleLinks(event)">
-              <strong><a href="<%= url %>" target="_blank"><%= url %></a></strong>
-            </button>
-            <div class="links-list">
-              <ul>
-                <% if links && links.any? %>
-                  <% links.each do |link| %>
-                    <li><a href="<%= link %>" target="_blank"><%= link %></a></li>
+    <div id="output">
+      <% if @output %>
+        <h2>Crawled <%= @output.length %> links:</h2>
+        <div>
+          <% @output.each do |url, links| %>
+            <div>
+              <button class="collapsible" onclick="toggleLinks(event)">
+                <strong><a href="<%= url %>" target="_blank"><%= url %></a></strong>
+              </button>
+              <div class="links-list">
+                <ul>
+                  <% if links && links.any? %>
+                    <% links.each do |link| %>
+                      <li><a href="<%= link %>" target="_blank"><%= link %></a></li>
+                    <% end %>
+                  <% else %>
+                    <li>No links found</li>
                   <% end %>
-                <% else %>
-                  <li>No links found</li>
-                <% end %>
-              </ul>
+                </ul>
+              </div>
             </div>
-          </div>
-        <% end %>
-      </div>
-    <% end %>
-
+          <% end %>
+        </div>
+      <% end %>
+    </div>
   </body>
 </html>
