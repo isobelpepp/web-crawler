@@ -1,5 +1,6 @@
 require 'nokogiri'
 require 'concurrent-ruby'
+require 'logger'
 require_relative '../helpers/http_helper'
 
 class WebCrawler
@@ -26,6 +27,9 @@ class WebCrawler
     )
     @stop_accepting_new_tasks = false
     @done = false
+    @logger = Logger.new(STDOUT)
+
+    @logger.info("WebCrawler initialized with start URL: #{@start_url} and max time: #{@max_time}")
   end
 
   def crawl
@@ -57,6 +61,7 @@ class WebCrawler
       webpage_url = @url_queue.pop(true) rescue nil
       break unless webpage_url
 
+      @logger.info("Fetching URL: #{webpage_url}")
       response = Helper::HTTPHelper.connect(webpage_url)
 
       handle_response(webpage_url, response)
@@ -69,11 +74,13 @@ class WebCrawler
       message << ", with response code: #{response.code}" if response
       @crawled_pages[webpage_url] = [message]
       @url_count.decrement
+      @logger.error(message)
       @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
     else
       @content_queue << { url: webpage_url, body: response.body }
       @content_count.increment
       @url_count.decrement
+      @logger.info("Successfully fetched #{webpage_url}")
       @condition.broadcast
     end
   end
@@ -112,7 +119,7 @@ class WebCrawler
       if @logged_links.include?(full_url) || !same_domain?(full_url) || non_html_link(full_url)
         links_on_page << full_url
       else
-        puts "Found link: #{full_url}"
+        @logger.info("Found link: #{full_url}")
         @url_count.increment
         @url_queue << full_url
         @logged_links.add(full_url)
@@ -134,10 +141,12 @@ class WebCrawler
   end
 
   def shut_down_pools
+    @logger.info("Shutting down process...")
     @crawl_pool.shutdown
     @process_pool.shutdown
     @crawl_pool.wait_for_termination
     @process_pool.wait_for_termination
+    @logger.info("Process shutdown complete.")
   end
 
   def check_max_time
@@ -145,10 +154,8 @@ class WebCrawler
     elapsed_time = Time.now - @start_time
 
     if elapsed_time > @max_time
-      puts "Maximum time exceeded. Shutting down process..."
+      @logger.info("Maximum time exceeded. Shutting down process...")
       close
-    else
-      puts "Time remaining: #{@max_time - elapsed_time} seconds."
     end
   end
 

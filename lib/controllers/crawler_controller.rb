@@ -11,7 +11,7 @@ class CrawlerController < Sinatra::Base
       crawler = WebCrawler.new(url, converted_max_time)
       crawler.crawl
     else
-      raise ArgumentError, "Not a valid URL, please try again."
+      raise ArgumentError, "Cannot connect to URL, please try a different one."
     end
   end
 

@@ -1,18 +1,20 @@
 require 'httparty'
+require 'logger'
 
 module Helper
   class HTTPHelper
     class << self
 
       def connect(webpage_url)
+        logger = Logger.new(STDOUT)
         begin
           HTTParty.get(webpage_url)
         rescue HTTParty::Error => e
           nil
-          puts "HTTParty error: #{e.message} while connecting to #{webpage_url}"
+          logger.error("HTTParty error: #{e.message} while connecting to #{webpage_url}")
         rescue StandardError => e
           nil
-          puts "Standard error: #{e.message} while connecting to #{webpage_url}"
+          logger.error("Standard error: #{e.message} while connecting to #{webpage_url}")
         end
       end
 
