@@ -95,7 +95,7 @@ class WebCrawler
       full_url = Helper::HTTPHelper.resolve_url(webpage_url, link)
       next unless full_url
 
-      if @logged_links.include?(full_url) || !same_domain?(full_url)
+      if @logged_links.include?(full_url) || !same_domain?(full_url) || non_html_link(full_url)
         links_on_page << full_url
       else
         puts "Found link: #{full_url}"
@@ -112,6 +112,12 @@ class WebCrawler
 
   def same_domain?(url)
     URI.parse(url).host == URI.parse(@start_url).host
+  end
+
+  def non_html_link(url)
+    non_html_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.css', '.js', '.json', '.xml']
+  
+    non_html_extensions.any? { |ext| url.downcase.end_with?(ext) }
   end
 
   def shut_down_pools

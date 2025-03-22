@@ -206,13 +206,21 @@ RSpec.describe WebCrawler do
       expect(response).to eq(expected_links)
     end
     it 'skips non-HTML pages' do
-      # stub a non-HTML page (e.g., PDF)
+      stub_request(:get, "https://example.com/")
+        .to_return(status: 200, body: '<html><a href="/page1">Page 1</a></html>', headers: {})
+      stub_request(:get, "https://example.com/page1")
+        .to_return(status: 200, body: '<html><a href="/file.pdf">Page 2</a></html>', headers: {})
+      stub_request(:get, "https://example.com/file.pdf")
+        .to_return(status: 200, body: "PDF content", headers: { "Content-Type" => "application/pdf" })
 
-      # crawl
-    
-      # expected links
+      response = crawler.crawl
 
-      # expect output to be the same as empty links
+      expected_links = {
+        "https://example.com/" => ["https://example.com/page1"],
+        "https://example.com/page1" => ["https://example.com/file.pdf"],
+      }
+
+      expect(response).to eq(expected_links)
     end
   end
 
