@@ -27,8 +27,8 @@ RSpec.describe WebCrawler do
 
         expected_links = {
         "https://example.com/" => ["https://example.com/page1", "https://example.com/page2"],
-        "https://example.com/page1" => ["No links found."],
-        "https://example.com/page2" => ["No links found."]
+        "https://example.com/page1" => [],
+        "https://example.com/page2" => []
         }
 
         expect(response).to eq(expected_links)
@@ -46,8 +46,8 @@ RSpec.describe WebCrawler do
 
         expected_links = {
         "https://example.com/" => ["https://example.com/page1", "https://example.com/page2"],
-        "https://example.com/page1" => ["No links found."],
-        "https://example.com/page2" => ["No links found."]
+        "https://example.com/page1" => [],
+        "https://example.com/page2" => []
         }
 
         expect(response).to eq(expected_links)
@@ -84,7 +84,7 @@ RSpec.describe WebCrawler do
       "https://example.com/page3" => ["https://example.com/page4"],
       "https://example.com/page4" => ["https://example.com/page5", "https://example.com/page3"],
       "https://example.com/page5" => ["https://example.com/page6"],
-      "https://example.com/page6" => ["No links found."]
+      "https://example.com/page6" => []
     }
 
       expect(response).to eq(expected_links)
@@ -183,7 +183,7 @@ RSpec.describe WebCrawler do
       response = crawler.crawl
 
       expected_links = {
-        "https://example.com/" => ["No links found."]
+        "https://example.com/" => []
       }
     
       expect(response).to eq(expected_links)
@@ -200,7 +200,7 @@ RSpec.describe WebCrawler do
 
       expected_links = {
         "https://example.com/" => ["https://example.com/page"],
-        "https://example.com/page" => ["No links found."]
+        "https://example.com/page" => []
       }
     
       expect(response).to eq(expected_links)

@@ -105,7 +105,7 @@ class WebCrawler
       end
       @condition.broadcast
     end
-    links_on_page.empty?  ? @crawled_pages[webpage_url] = ["No links found."] : @crawled_pages[webpage_url] = links_on_page.uniq
+    @crawled_pages[webpage_url] = links_on_page.uniq
     @condition.broadcast
   end
 
