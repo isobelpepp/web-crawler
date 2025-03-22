@@ -1,5 +1,4 @@
 require 'webmock/rspec'
-require 'timecop'
 require_relative '../../lib/services/web_crawler'
 
 RSpec.describe WebCrawler do
