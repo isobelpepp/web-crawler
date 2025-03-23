@@ -12,7 +12,6 @@ class WebCrawler
     @url_queue = Queue.new << @start_url
     @content_queue = Queue.new
     @url_count = Concurrent::AtomicFixnum.new(1) 
-    @content_count = Concurrent::AtomicFixnum.new(0)
     @crawled_pages = {}
     @cpu_cores = Etc.nprocessors
     @logged_links = Concurrent::Set.new.add(@start_url)
@@ -77,11 +76,9 @@ class WebCrawler
 
       content = @content_queue.pop(true) rescue nil
       break unless content
-
-      @content_count.decrement
       extract_links(content[:url], content[:body])
 
-      @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
+      @mutex.synchronize { close } if @url_count.value == 0 && @content_queue.length == 0
     end
   end
 
@@ -101,14 +98,13 @@ class WebCrawler
     @crawled_pages[webpage_url] = [message]
 
     @url_count.decrement
-    @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
+    @mutex.synchronize { close } if @url_count.value == 0 && @content_queue.length == 0
   end
 
   def handle_success_response(webpage_url, body)
     @logger.info("Successfully fetched #{webpage_url}")
 
     @content_queue << { url: webpage_url, body: body }
-    @content_count.increment
     @url_count.decrement
     @condition.broadcast
   end

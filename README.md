@@ -92,3 +92,4 @@ rspec
 - **Redirect Handling**: Improve clarity surrounding redirected requests.
 - **Mid crawl interruption**: Allow for user to stop the crawl and output data collected so far.
 - **Real-time updates**: Dynamically update page with latest crawl information.
+- **In Case of Deadlock**: Add in some logic which checks for deadlock and exit program if detected.
