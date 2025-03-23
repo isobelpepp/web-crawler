@@ -90,7 +90,6 @@ RSpec.describe WebCrawler do
       expect(response).to eq(expected_links)
     end
 
-        
     it "does not visit websites that aren't on the same domain" do
       stub_request(:get, "https://example.com/")
         .to_return(status: 200, body: '<html><a href="https://differentdomain.com/page1">Different domain</a></html>', headers: {})
@@ -124,7 +123,7 @@ RSpec.describe WebCrawler do
         .to_return(status: 200, body: '<html><a href="/page2">Page 2</a></html>', headers: {})
       stub_request(:get, "https://example.com/page2")
         .to_return(status: 200, body: '<html><a href="/page1">Page 1</a></html>', headers: {})
-    
+
       response = crawler.crawl
 
       expected_links = {
@@ -135,18 +134,23 @@ RSpec.describe WebCrawler do
     
       expect(response).to eq(expected_links)
     end
+
+    it 'can process a large number of pages' do
+      stub_request(:get, "https://example.com/")
+        .to_return(status: 200, body: '<html><a href="http://example.com/page_0">Page 0</a></html>', headers: {})
+      998.times do |i|
+        stub_request(:get, "http://example.com/page_#{i}")
+          .to_return(status: 200, body: "<html><a href='/page_#{i+1}'></a></html>", headers: {})
+      end
+      stub_request(:get, "http://example.com/page_998")
+        .to_return(status: 200, body: '<html></html>', headers: {})
+
+      response = crawler.crawl
+      expect(response.size).to eq(1000)
+    end
   end
 
   context "Network responses" do
-    it 'follows redirects correctly' do
-      # stub an empty page
-    
-      # crawl
-    
-      # expected links
-
-      # expect output to be the same as empty links
-    end
 
     it 'handles timeout errors' do
       stub_request(:get, "https://example.com/")
@@ -331,18 +335,17 @@ RSpec.describe WebCrawler do
         stub_request(:get, "https://example.com/")
           .to_return(status: 200, body: '<html><a href="/page1">Page 1</a></html>', headers: {})
         stub_request(:get, "https://example.com/page1")
-          .to_return { sleep(0.5); { status: 200, body: '<html><a href="/page2">Page 2</a></html>', headers: {} } }
+          .to_return { sleep(2); { status: 200, body: '<html><a href="/page2">Page 2</a></html>', headers: {} } }
         stub_request(:get, "https://example.com/page2")
-          .to_return { sleep(0.5); { status: 200, body: '<html><a href="/page3">Page 3</a></html>', headers: {} } }
+          .to_return { sleep(10); { status: 200, body: '<html><a href="/page3">Page 3</a></html>', headers: {} } }
         stub_request(:get, "https://example.com/page3")
-          .to_return { sleep(0.5); { status: 200, body: '<html><a href="/page3">Page 3</a></html>', headers: {} } }
-
-        allow(Time).to receive(:now).and_return(timed_crawler.instance_variable_get(:@start_time) + 1.5)
+          .to_return { sleep(10); { status: 200, body: '<html><a href="/page3">Page 3</a></html>', headers: {} } }
 
         response = timed_crawler.crawl
 
         expected_result = {
-          "https://example.com/"=>["https://example.com/page1"]
+          "https://example.com/"=>["https://example.com/page1"],
+          "https://example.com/page1" => ["https://example.com/page2"]
         }
 
         expect(response).to eq(expected_result)

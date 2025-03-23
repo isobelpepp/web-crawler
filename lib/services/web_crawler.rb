@@ -4,6 +4,7 @@ require 'logger'
 require_relative '../helpers/http_helper'
 
 class WebCrawler
+
   def initialize(start_url, max_time = nil)
     @start_url = start_url
     @max_time = max_time
@@ -52,9 +53,7 @@ class WebCrawler
     while !@done
       check_max_time
 
-      if @stop_accepting_new_tasks
-        break if @url_queue.empty?
-      end
+      break if @stop_accepting_new_tasks && @url_queue.empty?
   
       @mutex.synchronize { @condition.wait(@mutex) while @url_queue.empty? && !@done }
 
@@ -68,30 +67,11 @@ class WebCrawler
     end
   end
 
-  def handle_response(webpage_url, response)
-    if !response || response.code != 200 || response.body.nil? || response.body.empty?
-      message = "Error fetching #{webpage_url} content"
-      message << ", with response code: #{response.code}" if response
-      @crawled_pages[webpage_url] = [message]
-      @url_count.decrement
-      @logger.error(message)
-      @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
-    else
-      @content_queue << { url: webpage_url, body: response.body }
-      @content_count.increment
-      @url_count.decrement
-      @logger.info("Successfully fetched #{webpage_url}")
-      @condition.broadcast
-    end
-  end
-
   def process_html_content
     while !@done
       check_max_time
 
-      if @stop_accepting_new_tasks
-        break if @content_queue.empty?
-      end
+      break if @stop_accepting_new_tasks && @content_queue.empty?
 
       @mutex.synchronize { @condition.wait(@mutex) while @content_queue.empty? && !@done }
 
@@ -103,6 +83,34 @@ class WebCrawler
 
       @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
     end
+  end
+
+  def handle_response(webpage_url, response)
+    if unsuccessful_response(response)
+      handle_empty_response(webpage_url, response)
+    else
+      handle_success_response(webpage_url, response.body)
+    end
+  end
+
+  def handle_empty_response(webpage_url, response)
+    message = "Error fetching #{webpage_url} content"
+    message << ", with response code: #{response.code}" if response
+    
+    @logger.error(message)
+    @crawled_pages[webpage_url] = [message]
+
+    @url_count.decrement
+    @mutex.synchronize { close } if @url_count.value == 0 && @content_count.value == 0
+  end
+
+  def handle_success_response(webpage_url, body)
+    @logger.info("Successfully fetched #{webpage_url}")
+
+    @content_queue << { url: webpage_url, body: body }
+    @content_count.increment
+    @url_count.decrement
+    @condition.broadcast
   end
 
   def extract_links(webpage_url, body)
@@ -119,15 +127,19 @@ class WebCrawler
       if @logged_links.include?(full_url) || !same_domain?(full_url) || non_html_link(full_url)
         links_on_page << full_url
       else
-        @logger.info("Found link: #{full_url}")
-        @url_count.increment
-        @url_queue << full_url
-        @logged_links.add(full_url)
+        log_links(full_url)
         links_on_page << full_url
       end
     end
+
     @crawled_pages[webpage_url] = links_on_page.uniq
     @condition.broadcast
+  end
+
+  private
+
+  def unsuccessful_response(response)
+    !response || response.body.nil? || response.body.empty? || response.code.to_i >= 400
   end
 
   def same_domain?(url)
@@ -140,23 +152,31 @@ class WebCrawler
     url.start_with?('mailto:') || non_html_extensions.any? { |ext| url.downcase.end_with?(ext) }
   end
 
-  def shut_down_pools
-    @logger.info("Shutting down process...")
-    @crawl_pool.shutdown
-    @process_pool.shutdown
-    @crawl_pool.wait_for_termination
-    @process_pool.wait_for_termination
-    @logger.info("Process shutdown complete.")
+  def log_links(url)
+    @logger.info("Found link: #{url}")
+    @url_count.increment
+    @url_queue << url
+    @logged_links.add(url)
   end
+
 
   def check_max_time
     return if !@max_time
-    elapsed_time = Time.now - @start_time
 
+    elapsed_time = Time.now - @start_time
     if elapsed_time > @max_time
       @logger.info("Maximum time exceeded. Shutting down process...")
       close
     end
+  end
+
+  def shut_down_pools
+    @crawl_pool.shutdown
+    @process_pool.shutdown
+    @crawl_pool.wait_for_termination
+    @process_pool.wait_for_termination
+
+    @logger.info("Process shutdown complete.")
   end
 
   def close

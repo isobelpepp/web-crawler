@@ -10,11 +10,11 @@ module Helper
         begin
           HTTParty.get(webpage_url)
         rescue HTTParty::Error => e
-          nil
           logger.error("HTTParty error: #{e.message} while connecting to #{webpage_url}")
-        rescue StandardError => e
           nil
+        rescue StandardError => e
           logger.error("Standard error: #{e.message} while connecting to #{webpage_url}")
+          nil
         end
       end
 
