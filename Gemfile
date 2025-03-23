@@ -7,8 +7,12 @@ group :development do
   gem 'nokogiri'
   gem 'concurrent-ruby'
   gem 'httparty'
+  gem 'rerun'
+  gem 'rackup'
+  gem 'puma'
 end
 
 group :test do
   gem 'webmock'
+  gem 'rspec'
 end
